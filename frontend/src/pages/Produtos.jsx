@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import {
   listarProdutos,
   atualizarProduto,
@@ -11,22 +11,27 @@ function Produtos() {
   const [loading, setLoading] = useState(true);
   const [erro, setErro] = useState("");
 
-  async function carregarProdutos() {
+  // ===== CARREGAR PRODUTOS =====
+  const carregarProdutos = useCallback(async () => {
     try {
+      setLoading(true);
+      setErro("");
+
       const dados = await listarProdutos();
-      setProdutos(dados);
+      setProdutos(dados || []);
     } catch (error) {
-      console.log(error);
+      console.error(error);
       setErro("Erro ao carregar produtos");
     } finally {
       setLoading(false);
     }
-  }
+  }, []);
 
   useEffect(() => {
     carregarProdutos();
-  }, []);
+  }, [carregarProdutos]);
 
+  // ===== EXCLUIR =====
   async function handleExcluir(id) {
     const confirmar = window.confirm(
       "Deseja realmente excluir este produto?"
@@ -36,36 +41,43 @@ function Produtos() {
 
     try {
       await excluirProduto(id);
-      carregarProdutos();
+      await carregarProdutos();
     } catch (error) {
-      console.log(error);
+      console.error(error);
       alert("Erro ao excluir produto");
     }
   }
 
+  // ===== EDITAR (AGORA EDITA TUDO) =====
   async function handleEditar(produto) {
-    const novoNome = prompt("Novo nome:", produto.nomep);
-
-    if (!novoNome) return;
+    const nomep = prompt("Nome:", produto.nomep);
+    const categoria = prompt("Categoria:", produto.categoria);
+    const preco = prompt("Preço:", produto.preco);
+    const estoque = prompt("Estoque:", produto.estoque);
 
     try {
       await atualizarProduto(produto.idp, {
-        nomep: novoNome,
+        nomep,
+        categoria,
+        preco,
+        estoque,
       });
 
-      carregarProdutos();
+      await carregarProdutos();
     } catch (error) {
-      console.log(error);
+      console.error(error);
       alert("Erro ao editar produto");
     }
   }
 
+  // ===== FILTRO =====
   const produtosFiltrados = produtos.filter((produto) =>
-    produto.nomep.toLowerCase().includes(busca.toLowerCase()) ||
+    produto.nomep?.toLowerCase().includes(busca.toLowerCase()) ||
     String(produto.idp).includes(busca)
   );
 
-  if (loading) return <p>Carregando...</p>;
+  // ===== UI =====
+  if (loading) return <p>Carregando produtos...</p>;
   if (erro) return <p>{erro}</p>;
 
   return (
@@ -92,7 +104,7 @@ function Produtos() {
             <p><strong>Preço:</strong> R$ {produto.preco}</p>
             <p><strong>Estoque:</strong> {produto.estoque}</p>
 
-            <div>
+            <div className="botoes">
               <button onClick={() => handleEditar(produto)}>
                 Editar
               </button>

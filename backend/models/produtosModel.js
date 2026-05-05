@@ -1,9 +1,6 @@
 const pool = require('../config/database');
 
-// ============================================================
-// FUNÇÃO: listarTodos
-// DESCRIÇÃO: Retorna todos os Produtos do banco
-// ============================================================
+// LISTAR TODOS
 async function listarTodos() {
   const result = await pool.query(
     'SELECT * FROM Produtos ORDER BY idp'
@@ -11,10 +8,7 @@ async function listarTodos() {
   return result.rows;
 }
 
-// ============================================================
-// FUNÇÃO: buscarPorId
-// DESCRIÇÃO: Busca um produto específico pelo IDP
-// ============================================================
+// BUSCAR POR ID
 async function buscarPorId(id) {
   const result = await pool.query(
     'SELECT * FROM Produtos WHERE idp = $1',
@@ -23,114 +17,92 @@ async function buscarPorId(id) {
   return result.rows[0];
 }
 
+// BUSCAR POR NOME
 async function buscarPorNome(nome) {
-  try {
-    const query = 'SELECT * FROM Produtos WHERE nomep ILIKE $1';
-    const values = [`%${nome}%`];
-    const { rows } = await pool.query(query, values);
-    return rows;
-  } catch (erro) {
-    throw erro;
-  }
+  const query = 'SELECT * FROM Produtos WHERE nomep ILIKE $1';
+  const values = [`%${nome}%`];
+  const { rows } = await pool.query(query, values);
+  return rows;
 }
 
-
-
-// ============================================================
-// FUNÇÃO: criar
-// DESCRIÇÃO: Insere um novo produto
-// ============================================================
+// CRIAR
 async function criar(dados) {
-  const {
-    nomep,
-    categoria,
-    preco,
-    estoque
-  } = dados;
-  
+  const { nomep, categoria, preco, estoque } = dados;
+
   const sql = `
     INSERT INTO Produtos (nomep, categoria, preco, estoque)
     VALUES ($1, $2, $3, $4)
     RETURNING *
   `;
-  
-  const result = await pool.query(
-    sql,
-    [nomep, categoria, preco, estoque]
-  );
-  
-  return result.rows[0];
-}
 
-// ============================================================
-// FUNÇÃO: atualizar
-// DESCRIÇÃO: Atualiza os dados de um produto dinamicamente
-// ============================================================
-async function atualizar(id, dados) {
-  const {
+  const result = await pool.query(sql, [
     nomep,
     categoria,
     preco,
     estoque
-  } = dados;
-  
+  ]);
+
+  return result.rows[0];
+}
+
+// ATUALIZAR (DINÂMICO - CORRETO)
+async function atualizar(id, dados) {
+  const { nomep, categoria, preco, estoque } = dados;
+
   let campos = [];
   let valores = [];
-  let contador = 1;
-  
+  let index = 1;
+
   if (nomep !== undefined) {
-    campos.push(`nomep = $${contador++}`);
+    campos.push(`nomep = $${index++}`);
     valores.push(nomep);
   }
+
   if (categoria !== undefined) {
-    campos.push(`categoria = $${contador++}`);
+    campos.push(`categoria = $${index++}`);
     valores.push(categoria);
   }
+
   if (preco !== undefined) {
-    campos.push(`preco = $${contador++}`);
+    campos.push(`preco = $${index++}`);
     valores.push(preco);
   }
+
   if (estoque !== undefined) {
-    campos.push(`estoque = $${contador++}`);
+    campos.push(`estoque = $${index++}`);
     valores.push(estoque);
   }
-  
+
   if (campos.length === 0) return null;
-  
+
   valores.push(id);
-  
+
   const sql = `
     UPDATE Produtos
     SET ${campos.join(', ')}
-    WHERE idp = $${contador}
+    WHERE idp = $${index}
     RETURNING *
   `;
-  
+
   const result = await pool.query(sql, valores);
   return result.rows[0] || null;
 }
 
-// ============================================================
-// FUNÇÃO: deletar
-// DESCRIÇÃO: Remove um produto do banco
-// ============================================================
+// DELETAR
 async function deletar(id) {
   const result = await pool.query(
     'DELETE FROM Produtos WHERE idp = $1',
     [id]
   );
-  
+
   return result.rowCount > 0;
 }
 
-
-
-// ============================================================
-// FUNÇÃO: garantir coluna estoque
-// ============================================================
+// ESTOQUE (UTIL)
 async function ensureEstoqueColumn() {
-  const sql = `ALTER TABLE Produtos ADD COLUMN IF NOT EXISTS estoque VARCHAR`;
-  await pool.query(sql);
+  await pool.query(
+    'ALTER TABLE Produtos ADD COLUMN IF NOT EXISTS estoque VARCHAR'
+  );
 }
 
 module.exports = {
